@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Positional Web</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="main-menu">
+    <p id="errorPopUp"></p>
+
+    <h1>Positional Web</h1>
+
+    <hr>
+    <br>
+
+    <form>
+        <input type="text" id="nameOfLocation" name="nameOfLocation" placeholder="Enter name of location"><br>
+        <br>
+        <input type="button" id="nameButton" name="nameButton" value="Search">
+    </form>
+
+    <form>
+        <input type="button" id="coordinatesButton" name="coordinatesButton" value="Locate me">
+    </form>
+    <br>
+
+    <hr>
+</div>
+
+<script>
+
+    const nameButton = document.querySelector("#nameButton");
+    const coordinatesButton = document.querySelector("#coordinatesButton");
+
+    let resultJSON;
+    let refreshTable = 0;
+
+    //searching by text input (name of location)
+    let enteredName = "";
+    nameButton.addEventListener('click', () => {
+        enteredName = document.getElementById("nameOfLocation").value;
+        if(enteredName.length !== 0){
+            async function searchByName() {
+                return fetch('https://samoweb.praskac.sk:25678/PositionalWeb/server/search_by_name/index.php?' + new URLSearchParams({
+                    name: enteredName
+                })).then(
+                    response => response.json().then(data => ({status: response.status, body: data}))
+                )
+            }
+
+            const res = searchByName();
+
+            const saveWebsitesAndGenerateTable = async () => {
+                const x = await res;
+                resultJSON = x.body;
+             //  console.log(resultJSON);
+                generateTable(resultJSON);
+            }
+            saveWebsitesAndGenerateTable();
+            refreshTable = 1;
+        }
+    });
+
+    //searching by current location (coordinates) from geolocation api
+    let errorMessage = document.getElementById("errorPopUp");
+    coordinatesButton.addEventListener('click', () => {
+        if (navigator.geolocation){
+            navigator.geolocation.getCurrentPosition((position) => {
+                async function searchByCoordinates() {
+                    return fetch('https://samoweb.praskac.sk:25678/PositionalWeb/server/search_by_coordinates/index.php?' + new URLSearchParams({
+                        currentLongitude: position.coords.longitude,
+                        currentLatitude: position.coords.latitude
+                    })).then(
+                        response => response.json().then(data => ({status: response.status, body: data}))
+                    )
+                }
+                const res = searchByCoordinates();
+
+                const saveWebsitesAndGenerateTable = async () => {
+                    const x = await res;
+                    resultJSON = x.body;
+                  // console.log(resultJSON);
+                    generateTable(resultJSON);
+                }
+                saveWebsitesAndGenerateTable();
+                refreshTable = 1;
+            },showError);
+        }
+        else {
+            alert("Geolocation is not supported by this browser.");
+        }
+
+    });
+
+    function showError(error) {
+        switch(error.code) {
+            case error.POSITION_UNAVAILABLE:
+                alert("Your location is unavailable.");
+                break;
+            case error.TIMEOUT:
+                alert("The request to get your location timed out.");
+                break;
+            case error.UNKNOWN_ERR:
+                alert("Unknown error.");
+                break;
+            case error.PERMISSION_DENIED:
+                alert("Permission denied.");
+                break;
+        }
+    }
+
+    let div = document.createElement('div');
+    div.setAttribute("id", "resultDiv");
+    document.body.appendChild(div);
+
+    let table = document.createElement('table');
+    table.setAttribute("id", "resultTable");
+
+    div.appendChild(table);
+    function generateTable(data) {
+        if(refreshTable === 1){
+            document.getElementById("resultDiv").remove();
+
+            div = document.createElement('div');
+            div.setAttribute("id", "resultDiv");
+            document.body.appendChild(div);
+
+            table = document.createElement('table');
+            table.setAttribute("id", "resultTable");
+
+            div.appendChild(table);
+        }
+
+        let trNumberOfResults = document.createElement('tr');
+        let tdNumberOfResults = document.createElement('td');
+        let value = document.createTextNode("Number of results: " + data.length);
+        tdNumberOfResults.appendChild(value);
+        trNumberOfResults.appendChild((tdNumberOfResults));
+        table.appendChild(trNumberOfResults);
+
+        for (let i = 0; i < data.length; i++){
+            let tr = document.createElement('tr');
+            let td = document.createElement('td');
+
+            let a = document.createElement('a');
+            let text = document.createTextNode(data[i]['name']);
+            a.href = data[i]['website'];
+
+            a.appendChild(text);
+            td.appendChild(a);
+            tr.appendChild(td);
+
+            table.appendChild(tr);
+        }
+    }
+
+</script>
+</body>
+</html>
